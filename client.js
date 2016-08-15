@@ -1,24 +1,55 @@
 var fs = require('fs');
 var needle = require("needle")
-var Rcon = require('rcon')
 
+
+// config
+// name of executable
+var headlessCommand = "factorio.exe"
+var headlessFlags = [
+	"--start-server-load-latest",
+	"--rcon-port",
+	"27015",
+	"--rcon-password",
+	"123",
+	"--server-settings",
+	"server-settings.json",
+	"--no-auto-pause"
+]
+var headlessOptions = {
+	// working directory
+	cwd:"Factorio 0.13.9/bin/x64",
+	shell:true
+}
+
+const spawn = require('child_process').spawn;
+const factorio = spawn(headlessCommand, headlessFlags, headlessOptions);
+factorio.stdin.setEncoding('utf-8');
+factorio.stdout.pipe(process.stdout);
+factorio.stdin.write("Node hook initialized!\n");
+setInterval(function(){
+	factorio.stdin.write('/c remote.call("clusterio", "import", "iron-plate", 10)\n')
+}, 10000)
 // connect us to the server with rcon
 // IP, port, password
-var conn = new Rcon('localhost', 12345, '123');
-conn.on('auth', function() {
-  console.log("Authed!");
+/*
+var Rcon = require('simple-rcon');
+var client = new Rcon({
+  host: '81.167.2.56',
+  port: '27015',
+  password: '123',
+  timeout: 0
+}).connect();
 
-}).on('response', function(str) {
-  console.log("Got response: " + str);
-
-}).on('end', function() {
-  console.log("Socket closed!");
-  process.exit();
-
+client.on('authenticated', function() {
+  console.log('Authenticated!');
+}).on('connected', function() {
+  console.log('Connected!');
+}).on('disconnected', function() {
+  console.log('Disconnected!');
+  // now reconnect
+  client.connect();
 });
-
-conn.connect();
-
+*/
 // trigger when something happens to output.txt
 fs.watch("Factorio 0.13.9/script-output/output.txt", "utf8", function(eventType, filename) {
 	// get array of lines in file
@@ -47,19 +78,20 @@ fs.watch("Factorio 0.13.9/script-output/orders.txt", "utf8", function(eventType,
 	// if you found anything, reset the file
 	if(items[0]) {
 		fs.writeFileSync("Factorio 0.13.9/script-output/orders.txt", "")
-	}
-	for(i = 0;i < items.length; i++) {
-		if(items[i]) {
-			g = items[i].split(" ");
-			g[0] = g[0].replace("\u0000", "");
-			console.log(g);
-			// send our entity and count to the master for him to keep track of
-			needle.post('localhost:8080/remove', {name:g[0], count:g[1]}, function(err, resp, body){
-				console.log(body);
-				if(body){
-					//conn.send("/c remote.call('clusterio', 'import', '" + g[0] + "', " + g[1] + ")")
-				}
-			});
+		for(i = 0;i < items.length; i++) {
+			if(items[i]) {
+				g = items[i].split(" ");
+				g[0] = g[0].replace("\u0000", "");
+				console.log(g);
+				// send our entity and count to the master for him to keep track of
+				needle.post('localhost:8080/remove', {name:g[0], count:g[1]}, function(err, resp, body){
+					console.log(body);
+					//factorio.stdin.write("Node hook alive\n");
+					//factorio.stdin.write('/c remote.call("clusterio", "import", "' + g[0] + '", ' + g[1] + ')\n');
+					factorio.stdin.end('/c remote.call("clusterio", "import", "' + g[0] + '", ' + g[1] + ')\n')
+					console.log('written!')
+				});
+			}
 		}
 	}
 })

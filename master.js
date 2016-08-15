@@ -35,7 +35,7 @@ db.items.additem = function(object) {
 	})
 }
 db.items.removeitem = function(object) {
-	db.items.findOne({name:object.name}, function (err, doc) {
+	return db.items.findOne({name:object.name}, function (err, doc) {
 		// console.dir(doc);
 		if (doc) {
 			// Update existing items if item name already exists
@@ -56,7 +56,7 @@ db.items.removeitem = function(object) {
 app.post("/place", function(req, res) {
 	res.header("Access-Control-Allow-Origin", "*");
 	res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-	console.log("added: " + req.body);
+	console.log("added: " + req.body.name + req.body.count);
 	// save items we get
 	db.items.additem(req.body)
 	// Attempt confirming
@@ -67,7 +67,7 @@ app.post("/place", function(req, res) {
 app.post("/remove", function(req, res) {
 	res.header("Access-Control-Allow-Origin", "*");
 	res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-	console.log("removed: " + req.body);
+	console.log("removed: " + req.body.name + req.body.count);
 	// save items we get
 	temp = db.items.removeitem(req.body);
 	if(temp) {
