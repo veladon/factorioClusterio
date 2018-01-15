@@ -1,6 +1,11 @@
+bootStart = Date.now()
+
 const fs = require('fs-extra');
 const https = require('follow-redirects').https;
 const needle = require("needle");
+const needleReqOptions = {
+	rejectUnauthorized: false  // verify SSL certificate
+}
 const child_process = require('child_process');
 const path = require('path');
 const syncRequest = require('sync-request');
@@ -22,6 +27,10 @@ const configManager = require("./lib/manager/configManager.js");
 // require config.json
 var config = require('./config');
 var global = {};
+
+bootEnd = Date.now()
+
+console.log("Started in "+(bootEnd-bootStart)+" ms");
 
 if (!fs.existsSync("./instances/")) {
 	fs.mkdirSync("instances");
@@ -575,7 +584,7 @@ function instanceManagement() {
 					} else {
 						payload.mac = mac
 						console.log("Registered our precense with master "+config.masterIP+" at " + payload.time);
-						needle.post(config.masterIP + ":" + config.masterPort + '/api/getID', payload, function (err, response, body) {
+						needle.post("https://" + config.masterIP + ":" + config.masterPort + '/api/getID', payload, needleReqOptions, function (err, response, body) {
 							if (err && err.code != "ECONNRESET"){
 								console.error("We got problems, something went wrong when contacting master");
 								console.error(err);
@@ -603,7 +612,7 @@ function instanceManagement() {
 				modName: modHashes[i].modName,
 				hash: modHashes[i].hash,
 			}
-			needle.post(config.masterIP + ":" + config.masterPort + '/api/checkMod', payload, function (err, response, body) {
+			needle.post("https://" + config.masterIP + ":" + config.masterPort + '/api/checkMod', payload, needleReqOptions, function (err, response, body) {
 				if(err) throw err // Unable to contact master server! Please check your config.json.
 				if(response && body && body == "found") {
 					console.log("master has mod");
@@ -613,7 +622,7 @@ function instanceManagement() {
 						console.log("Sending mod: " + mod);
 						// Send mods master says it wants
 						// response.body is a string which is a modName.zip
-						var req = request.post("http://"+config.masterIP + ":" + config.masterPort + '/api/uploadMod', function (err, resp, body) {
+						var req = request.post("https://"+config.masterIP + ":" + config.masterPort + '/api/uploadMod', needleReqOptions, function (err, resp, body) {
 							if (err) {
 								console.log('Error!');
 								throw err
@@ -672,7 +681,7 @@ function instanceManagement() {
 						}
 					}
 					console.log("Recorded flows, copper plate since last time: " + payload["copper-plate"]);
-					needle.post(config.masterIP + ":" + config.masterPort + '/api/logStats', {timestamp: timestamp, instanceID: instanceconfig.unique,data: payload}, function (err, response, body) {
+					needle.post("https://" + config.masterIP + ":" + config.masterPort + '/api/logStats', {timestamp: timestamp, instanceID: instanceconfig.unique,data: payload}, needleReqOptions, function (err, response, body) {
 						// we did it, keep going
 					});
 				}
@@ -699,7 +708,7 @@ function instanceManagement() {
 				g[0] = g[0].replace("\u0000", "");
 				// console.log("exporting " + JSON.stringify(g));
 				// send our entity and count to the master for him to keep track of
-				needle.post(config.masterIP + ":" + config.masterPort + '/api/place', {
+				needle.post("https://" + config.masterIP + ":" + config.masterPort + '/api/place', needleReqOptions, {
 					name: g[0],
 					count: g[1],
 					instanceName: instance, // name of instance
@@ -761,7 +770,7 @@ function instanceManagement() {
 			// request our items, one item at a time
 			for (let i = 0; i < Object.keys(preparedPackage).length; i++) {
 				// console.log(preparedPackage[Object.keys(preparedPackage)[i]]);
-				needle.post(config.masterIP + ":" + config.masterPort + '/api/remove', preparedPackage[Object.keys(preparedPackage)[i]], function (err, response, body) {
+				needle.post("https://" + config.masterIP + ":" + config.masterPort + '/api/remove', preparedPackage[Object.keys(preparedPackage)[i]], needleReqOptions, function (err, response, body) {
 					if (response && response.body && typeof response.body == "object") {
 						// buffer confirmed orders
 						confirmedOrders[confirmedOrders.length] = {
@@ -785,7 +794,7 @@ function instanceManagement() {
 	// COMBINATOR SIGNALS ---------------------------------------------------------
 	// get inventory from Master and RCON it to our slave
 	setInterval(function () {
-		needle.get(config.masterIP + ":" + config.masterPort + '/api/inventory', function (err, response, body) {
+		needle.get("https://" + config.masterIP + ":" + config.masterPort + '/api/inventory', needleReqOptions, function (err, response, body) {
 			if(err){
 				console.log("Unable to get JSON master/api/inventory, master might be unaccessible");
 			} else if (response && response.body) {
@@ -812,7 +821,7 @@ function instanceManagement() {
 	// send any signals the slave has been told to send
 	setInterval(function () {
 		// Fetch combinator signals from the server
-		needle.post(config.masterIP + ":" + config.masterPort + '/api/readSignal', {
+		needle.post("https://" + config.masterIP + ":" + config.masterPort + '/api/readSignal', needleReqOptions, {
 			since: lastSignalCheck
 		}, function (err, response, body) {
 			if (response && response.body) {
@@ -848,7 +857,7 @@ function instanceManagement() {
 								frame: framepart, // thats our array of objects(single signals);
 							}
 							// console.log(doneframe);
-						needle.post(config.masterIP + ":" + config.masterPort + '/api/setSignal', doneframe, function (err, response, body) {
+						needle.post("https://" + config.masterIP + ":" + config.masterPort + '/api/setSignal', doneframe, needleReqOptions, function (err, response, body) {
 							if (response && response.body) {
 								// In the future we might be interested in whether or not we actually manage to send it, but honestly I don't care.
 							}

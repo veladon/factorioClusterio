@@ -489,6 +489,7 @@ app.post("/api/getStats", function(req,res) {
 	}
 	// console.log(req.body);
 	if(typeof req.body == "object" && req.body.instanceID && req.body.statistic === undefined) {
+		// DEPRECATED DUE TO PERFORMANCE REASONS, PLEASE USE /api/getTimelineStats
 		// if not specified, get stats for last 24 hours
 		if(!req.body.fromTime) {
 			req.body.fromTime = Date.now() - 86400000 // 24 hours in MS
@@ -610,7 +611,12 @@ app.get("/api/getFactorioLocale", function(req,res){
 	getFactorioLocale.asObject(config.factorioDirectory, "en", (err, factorioLocale) => res.send(factorioLocale));
 });
 
-var server = require("http").Server(app);
+var privateKey  = fs.readFileSync('database/certificates/cert.key', 'utf8');
+var certificate = fs.readFileSync('database/certificates/cert.crt', 'utf8');
+
+var credentials = {key: privateKey, cert: certificate};
+
+var server = require("https").createServer(credentials, app);
 server.listen(config.masterPort || 8080, function () {
 	console.log("Listening on port %s...", server.address().port);
 });
